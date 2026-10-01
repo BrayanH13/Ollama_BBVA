@@ -1,0 +1,52 @@
+services:
+  ollama:                    # LLM local (gratis)
+    image: ollama/ollama:latest
+    volumes: ["ollama:/root/.ollama"]
+    ports: ["11434:11434"]
+    environment:
+      OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-8192}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    # Con GPU NVIDIA: descomenta
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
+
+  ollama-pull:               # descarga el modelo una sola vez y termina
+    image: ollama/ollama:latest
+    depends_on:
+      ollama: { condition: service_healthy }
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "${OLLAMA_MODEL:-qwen2.5:7b}"]
+    restart: "no"
+
+  api:                       # chat + API
+    build: .
+    env_file: .env
+    environment:
+      LLM_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://ollama:11434/v1
+    depends_on:
+      ollama: { condition: service_healthy }
+      ollama-pull: { condition: service_completed_successfully }
+    ports: ["8000:8000"]
+    volumes: ["./data:/app/data"]
+    restart: unless-stopped
+
+  ingest:                    # job: scraping -> limpieza -> indexado (no necesita LLM)
+    build: .
+    env_file: .env
+    profiles: ["ingest"]
+    volumes: ["./data:/app/data"]
+    command: ["python", "-m", "app.cli", "all"]
+
+volumes:
+  ollama:

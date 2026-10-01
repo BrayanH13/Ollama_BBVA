@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Asistente BBVA Colombia</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#111827; --mut:#6b7280; --brand:#004481; --line:#e5e7eb; --me:#e8f0fa; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f172a; --card:#1e293b; --ink:#f1f5f9; --mut:#94a3b8; --brand:#5bbeff; --line:#334155; --me:#0c2a4a; } }
+  * { box-sizing:border-box } html,body { height:100%; margin:0 }
+  body { font:15px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--ink); display:flex; justify-content:center }
+  main { width:100%; max-width:760px; height:100%; display:flex; flex-direction:column; padding:12px }
+  header { display:flex; justify-content:space-between; align-items:center; padding:8px 4px }
+  h1 { font-size:17px; margin:0; color:var(--brand) }
+  button { cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:8px; padding:8px 12px; font:inherit }
+  #log { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:8px 4px }
+  .msg { max-width:88%; padding:10px 14px; border-radius:14px; background:var(--card); border:1px solid var(--line); white-space:pre-wrap }
+  .me { align-self:flex-end; background:var(--me) }
+  .src { margin-top:8px; font-size:12px; color:var(--mut) } .src a { color:var(--brand); display:block }
+  form { display:flex; gap:8px; padding-top:8px }
+  input { flex:1; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit }
+  form button { background:var(--brand); color:#fff; border:0 } @media (prefers-color-scheme: dark) { form button { color:#0f172a } }
+  .hint { color:var(--mut); text-align:center; margin-top:20vh }
+</style>
+</head>
+<body>
+<main>
+  <header><h1>Asistente BBVA Colombia</h1><button id="new">Nueva conversación</button></header>
+  <div id="log"><div class="hint">Pregúntame sobre productos y servicios de bbva.com.co</div></div>
+  <form id="f"><input id="q" placeholder="Escribe tu pregunta…" autocomplete="off" required><button id="send">Enviar</button></form>
+</main>
+<script>
+const log = document.getElementById('log'), q = document.getElementById('q'), send = document.getElementById('send');
+let cid = localStorage.getItem('cid') || '';
+
+function add(role, text, sources) {
+  log.querySelector('.hint')?.remove();
+  const d = document.createElement('div'); d.className = 'msg ' + (role === 'user' ? 'me' : '');
+  d.textContent = text;
+  if (sources?.length) {
+    const s = document.createElement('div'); s.className = 'src'; s.textContent = 'Fuentes:';
+    sources.forEach((x, i) => { const a = document.createElement('a'); a.href = x.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = `[${i+1}] ${x.title}`; s.appendChild(a); });
+    d.appendChild(s);
+  }
+  log.appendChild(d); log.scrollTop = log.scrollHeight; return d;
+}
+
+async function restore() {
+  if (!cid) return;
+  try {
+    const r = await fetch('/api/conversations/' + cid); const j = await r.json();
+    j.messages.forEach(m => add(m.role, m.content));
+  } catch {}
+}
+
+document.getElementById('f').addEventListener('submit', async e => {
+  e.preventDefault(); const text = q.value.trim(); if (!text) return;
+  q.value = ''; send.disabled = true; add('user', text);
+  const wait = add('assistant', 'Pensando…');
+  try {
+    const r = await fetch('/api/chat', { method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message: text, conversation_id: cid || null }) });
+    const j = await r.json(); wait.remove();
+    if (!r.ok) { add('assistant', 'Error: ' + (j.detail || r.status)); }
+    else { cid = j.conversation_id; localStorage.setItem('cid', cid); add('assistant', j.answer, j.sources); }
+  } catch (err) { wait.remove(); add('assistant', 'Error de red: ' + err.message); }
+  send.disabled = false; q.focus();
+});
+
+document.getElementById('new').onclick = () => { localStorage.removeItem('cid'); location.reload(); };
+restore();
+</script>
+</body>
+</html>

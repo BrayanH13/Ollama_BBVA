@@ -1,0 +1,8 @@
+fastapi==0.115.*
+uvicorn[standard]==0.32.*
+requests==2.32.*
+beautifulsoup4==4.12.*
+lxml==5.*
+chromadb==0.5.*
+fastembed==0.4.*
+Ollama
