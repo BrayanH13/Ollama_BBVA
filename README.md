@@ -14,7 +14,7 @@ Abre http://localhost:8000 cuando `ollama-pull` termine.
 Etapas por separado: `docker compose --profile ingest run --rm ingest python -m app.cli scrape|clean|index`
 
 ## Modelo
-`OLLAMA_MODEL` en `.env` (por defecto `qwen2.5:7b`; `llama3.2:3b` si tienes poca RAM).
+`OLLAMA_MODEL` en `.env` (por defecto `qwen2.5:7b`; `llama3.2:3b` para menor uso de RAM).
 Tras cambiarlo: `docker compose up -d` (se descarga el nuevo modelo).
 `OLLAMA_CONTEXT_LENGTH` (8192) evita que Ollama trunque el prompt; `OLLAMA_KEEP_ALIVE` (30m) mantiene el modelo en memoria.
 Con GPU NVIDIA descomenta el bloque `deploy` del servicio `ollama` en `docker-compose.yml`.
@@ -27,5 +27,5 @@ Con GPU NVIDIA descomenta el bloque `deploy` del servicio `ollama` en `docker-co
 - `POST /api/chat {message, conversation_id?}` · `GET/DELETE /api/conversations/{id}` · `GET /api/health`
 - `HISTORY_WINDOW` (N) controla cuántos mensajes previos se usan.
 
-## Cambiar de proveedor
+## Cambiar de proveedor, algunos como ejemplo 
 `LLM_PROVIDER=ollama` (por defecto) · `openai` (cualquier endpoint compatible) · `anthropic` (de pago; descomenta `anthropic` en `requirements.txt`).
